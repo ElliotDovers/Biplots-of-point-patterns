@@ -1,0 +1,7 @@
+Warning messages:
+1: In asMethod(object) :
+  sparse->dense coercion: allocating vector of size 1.1 GiB
+2: In asMethod(object) :
+  sparse->dense coercion: allocating vector of size 1.1 GiB
+3: In asMethod(object) :
+  sparse->dense coercion: allocating vector of size 1.2 GiB
