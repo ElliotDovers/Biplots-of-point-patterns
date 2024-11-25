@@ -1,0 +1,18 @@
+#!/bin/bash
+	
+#PBS -N 0_quad_conv_lansing
+#PBS -l mem=80gb
+#PBS -l walltime=11:59:59
+
+cd $HOME/lansing_woods_analysis
+
+module purge
+module add geos/3.9.1
+module add proj/8.2.1
+module add gsl/2.7.1
+module add sqlite/3.39.4
+module add udunits/2.2.28
+module add gdal/3.5.3-szip
+module add r/4.2.2
+
+Rscript quad_conv.R

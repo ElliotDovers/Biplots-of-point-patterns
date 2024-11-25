@@ -3,7 +3,7 @@
 #PBS -N model_check
 #PBS -l mem=19gb
 #PBS -l walltime=11:59:59
-#PBS -J 1-117
+#PBS -J 118-156
 
 cd /srv/scratch/z3130949/MVPPM/nsw_flora
 

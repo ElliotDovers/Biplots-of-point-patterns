@@ -18,6 +18,7 @@ pp <- as.data.frame(lansing)
 colnames(pp)[3] <- "tree"
 pp$pt <- 1
 pp$wt <- 1e-6
+# pp$wt <- 1e-8
 # set up the quadrature points
 n_q <- 10000
 set.seed(1) # settng seed for the random quad pts for reproducability
@@ -140,9 +141,41 @@ dev.off()
 # set the selected number of basis functions to use
 bfs <- make_basis(k = bf.search$fitted_k[which.max(bf.search$ll)], domain)
 
+# WORKING FOR BASIS FUNCTIONS
+tmp.bfs <- bfs
+class(tmp.bfs)[2] <- "bf.df"
+
+bfs <- make_basis(k = 64, domain)
+plot(vec2im(domain$pt, domain$x, domain$y), xlim = c(-0.25, 1.25), ylim = c(-0.25, 1.25))
+symbols(bfs$x, bfs$y, circles = bfs$scale, inches = F, add = T)
+points(domain[c(1985, 3200), c("x", "y")])
+fields::rdist(domain[c(1985, 8000), c("x", "y")])
+
+rad <- NULL
+zz <- NULL
+tmp.pts <- domain[c(1985, 3200), c("x", "y")]
+tmp.dist <- fields::rdist(tmp.pts)
+for (i in 4:400) {
+  bfs <- make_basis(k = i, domain)
+  z <- bf_matrix(bfs, tmp.pts)
+  zz[i] <- sum(z[1, ] * z[2, ])
+  rad[i] <- bfs$scale[1]
+  rm(bfs, z)
+}
+plot(rad, zz)
+abline(v = tmp.dist[1,2] / 1.5)
+
 # fit the models
 m0 <- mvlgcp(pt ~ (1|tree), data = dat, weights = dat$wt, basis.functions = bfs, response.id = dat$tree, mv.flds = "correlated")
+
+start.pars <- lapply(split(m0$fit$parfull, names(m0$fit$parfull)), unname)
+start.pars$b <- c(start.pars$b, rep(0, nrow(bfs) * length(levels(pp$tree)))) # add additional field coefs
+start.pars$theta <- c(start.pars$theta, rep(-3, length(levels(pp$tree)))) # add additional field variances
+start.pars$theta <- rep(-3, length(start.pars$theta))
+m <- mvlgcp(pt ~ (1|tree), data = dat, weights = dat$wt, basis.functions = bfs, response.id = dat$tree, start = start.pars)
+
 m <- mvlgcp(pt ~ (1|tree), data = dat, weights = dat$wt, basis.functions = bfs, response.id = dat$tree)
+m_opt <- mvlgcp(pt ~ (1|tree), data = dat, weights = dat$wt, basis.functions = bfs, response.id = dat$tree, n_factors = 4, control = glmmTMBControl(optimizer = nlminb, start_method = list(method = "res")))
 
 # calculate K functions and sim envelopes for redoak and maple #################
 
@@ -424,6 +457,9 @@ bfs$xycol <- domain$xycol[nn.bfs]
 # 
 # dev.off()
 
+tmp.names <- c("", "", "", "", "redoak", "whiteoak")
+tmp.names <- rep("", 6)
+
 # Plot with all data
 png(filename = paste0(home.wd, "/figures/lansing_biplot.png"), width = 6.2 * plot.res, height = 4.8 * plot.res, res = plot.res)
 layout(matrix(c(1,1,2,2,2,2,3,4,5,6,7,8), nrow = 2, byrow = T), widths = rep(1/6, 6), heights = c(2.1/3, 0.9/3))
@@ -436,7 +472,8 @@ points(bfs$x, bfs$y, bg = bfs$xycol, pch = 21)
 legend(x = 0.1, y = -0.1, legend = c("Basis function knots", "Tree Locations"), pch = c(1, 4), bty = "n", xpd = T)
 
 par(mar = c(2.1,2.1,2.1,0), xpd = F)
-biplot(m, score.col = bfs$xycol, alpha = 1.35, xlab = "", ylab = "", bty = "n", cex = 1, load.name.cex = 1.5, load.lab.offset = -0.05)
+biplot(m, score.col = bfs$xycol, load.names = tmp.names, alpha = 1.35, xlab = "", ylab = "", bty = "n", cex = 1, load.name.cex = 1.5, load.lab.offset = -0.05, arrow.head.length = 0.08)
+text(x = c(-1.65, -0.6, 0.2, 1.2, -0.35, 0.35), y = c(0.05, -0.95, 0.675, 0.15, -0.1, -0.2), labels = c("misc", "maple", "hickory", "blackoak", "redoak", "whiteoak"), cex = 1.5)
 # biplot(m, score.col = bfs$xycol, xlab = "", ylab = "", bty = "n", cex = 1, load.name.cex = 1.5)
 
 # plot(1, type = "n", axes = F)
@@ -525,10 +562,72 @@ mtext("white oak", side = 3, line = -0.85, adj = 0, cex = 0.9)
 
 dev.off()
 
+png(filename = paste0(home.wd, "/figures/talk_plot_without_data.png"), width = 6.2 * plot.res, height = 4.8 * plot.res, res = plot.res)
+layout(matrix(c(1,1,2,2,2,2,3,4,5,6,7,8), nrow = 2, byrow = T), widths = rep(1/6, 6), heights = c(2.1/3, 0.9/3))
+par(mar = c(2.1, 1.5, 2.1, 2.1))
+plot(vec2im(domain$xycol, domain$x, domain$y), valuesAreColors = T, box = F, main = "")
+# mtext("A: Biplot with\nDomain Color Guide", side = 3, line = -0.75, adj = 0)
+# mtext("Lansing Woods", side = 3, line = -1)
+par(xpd = T)
+points(bfs$x, bfs$y, bg = bfs$xycol, pch = 21)
+legend(x = 0.1, y = -0.1, legend = c("Basis function knots", ""), pch = c(1, NA), bty = "n", xpd = T)
+
+par(mar = c(2.1,2.1,0,0), xpd = F)
+biplot(m, score.col = bfs$xycol, alpha = 1.35, xlab = "", ylab = "", bty = "n", cex = 1, load.name.cex = 1.5, load.lab.offset = -0.05)
+# biplot(m, score.col = bfs$xycol, xlab = "", ylab = "", bty = "n", cex = 1, load.name.cex = 1.5)
+
+# plot(1, type = "n", axes = F)
+
+par(mar = c(0,1.5,2.1,0))
+plot(vec2im(rep("white", nrow(domain)), domain$x, domain$y), valuesAreColors = T, box = F, main = "")
+# points(dat[dat$tree == "blackoak" & dat$pt == 1, c("x", "y")], pch = 4, cex = 0.6)#, col = "black")
+mtext("Lansing Woods Presence Data:", side = 3, line = 0.5, adj = 0, col = "white")
+mtext("black oak", side = 3, line = -0.85, adj = 0, cex = 0.9, col = "white")
+
+# par(mar = c(0,2.1,2.1,0))
+plot(vec2im(rep("white", nrow(domain)), domain$x, domain$y), valuesAreColors = T, box = F, main = "")
+# points(dat[dat$tree == "hickory" & dat$pt == 1, c("x", "y")], pch = 4, cex = 0.6)#, col = "brown")
+mtext("hickory", side = 3, line = -0.85, adj = 0, cex = 0.9, col = "white")
+
+# par(mar = c(0,2.1,2.1,0))
+plot(vec2im(rep("white", nrow(domain)), domain$x, domain$y), valuesAreColors = T, box = F, main = "")
+# points(dat[dat$tree == "maple" & dat$pt == 1, c("x", "y")], pch = 4, cex = 0.6)#, col = "goldenrod")
+mtext("maple", side = 3, line = -0.85, adj = 0, cex = 0.9, col = "white")
+
+# par(mar = c(0,2.1,2.1,0))
+plot(vec2im(rep("white", nrow(domain)), domain$x, domain$y), valuesAreColors = T, box = F, main = "")
+# points(dat[dat$tree == "misc" & dat$pt == 1, c("x", "y")], pch = 4, cex = 0.6)#, col = "grey25")
+mtext("misc", side = 3, line = -0.85, adj = 0, cex = 0.9, col = "white")
+
+# par(mar = c(0,2.1,2.1,0))
+plot(vec2im(rep("white", nrow(domain)), domain$x, domain$y), valuesAreColors = T, box = F, main = "")
+# points(dat[dat$tree == "redoak" & dat$pt == 1, c("x", "y")], pch = 4, cex = 0.6)#, col = "red")
+mtext("red oak", side = 3, line = -0.85, adj = 0, cex = 0.9, col = "white")
+
+# par(mar = c(0,1.5,2.1,0))
+plot(vec2im(rep("white", nrow(domain)), domain$x, domain$y), valuesAreColors = T, box = F, main = "")
+# points(dat[dat$tree == "whiteoak" & dat$pt == 1, c("x", "y")], pch = 4, cex = 0.6)#, col = "seashell1")
+mtext("white oak", side = 3, line = -0.85, adj = 0, cex = 0.9, col = "white")
+
+dev.off()
+
 # compute the correlation matrix
 cov.bf <- VarCorr(m)[[1]]$basis.functions # the var-cov matrix from the shared fields
 cov.bf1 <- VarCorr(m)[[1]]$basis.functions.1 # the var-cov matrix from the independent fields
+cov.bf_opt <- VarCorr(m_opt)[[1]]$basis.functions # the var-cov matrix from the shared fields
+cov.bf1_opt <- VarCorr(m_opt)[[1]]$basis.functions.1 # the var-cov matrix from the independent fields
+
+tmp.z <- bf_matrix(m$basis.functions, domain[,c("x", "y")])
+
+tmp.scale <- NULL
+for (i in 1:nrow(tmp.z)) {
+  tmp.scale[i] <- sum(tmp.z[i, ] * tmp.z[i, ])
+}
+
 cor.comp_mu <- cov2cor(cov.bf + cov.bf1)
+cor.comp_mu_opt <- cov2cor(cov.bf_opt + cov.bf1_opt)
+cor.comp_mu_opt2 <- cov2cor(cov.bf_opt + cov.bf1_opt + diag(rep(VarCorr(m_opt)[[1]]$tree, length(levels(dat$tree)))))
+cor.comp_mu <- cov2cor(mean(tmp.scale) * (cov.bf + cov.bf1))
 cor.comp_xi <- cov2cor(cov.bf)
 dimnames(cor.comp_mu) <- list(levels(dat$tree), levels(dat$tree))
 dimnames(cor.comp_xi) <- list(levels(dat$tree), levels(dat$tree))
@@ -673,6 +772,186 @@ corrplot(cor.comp_xi, method = "square", tl.cex = 1, tl.srt = 45, diag = T, tl.c
 abline(a = 7, b = -1, xpd = T, lty = "dashed")
 mtext("Estimates from the proposed approach", side = 2, line = 3, at = 3)
 mtext("Estimates from Waagepetersen et al. (2016)", side = 3, line = 2.5, at = 4.25)
+dev.off()
+
+## Convergence of the quadrature approximation #################################
+
+library(glmmTMB)
+
+# extract the regular grid of quadrature included in the glmmTMB data
+data("lansing", package = "glmmTMB")
+domain <- lansing[lansing$tree == "blackoak" & lansing$pt == 0, ]
+
+# convert the lansing woods data into the required format
+data("lansing", package = "spatstat.data")
+pp <- as.data.frame(lansing)
+colnames(pp)[3] <- "tree"
+pp$pt <- 1
+pp$wt <- 1e-6
+# set up the quadrature points
+n_q <- 10000
+set.seed(1) # settng seed for the random quad pts for reproducability
+quad <- data.frame(x = runif(n_q), y = runif(n_q), pt = 0, wt = lansing$window$units$multiplier^2 / n_q) # wt is area / # quad pts
+set.seed(NULL)
+# create the required replicates of the quad points
+tmp <- quad[rep(seq_len(n_q), length(levels(pp$tree))), ]
+tmp$tree <- rep(levels(pp$tree), each = n_q) # assign the tree classes
+dat <- rbind(pp, tmp)
+
+# set the basis functions
+bfs <- make_basis(k = 150, domain)
+
+# set the scope for q
+tmp.qs <- c(1000, 5000, seq(10000, 100000, by = 20000), 100000)
+
+# set the repetitions for each value of q
+reps <- 10
+
+# set the loop variable for q (with repetitions)
+n_q <- rep(tmp.qs, each = reps)
+rep.idx <- rep(1:reps, times = length(tmp.qs))
+rm(tmp.qs)
+
+# initialise storage
+ll0 <- NULL
+ll <- NULL
+
+set.seed(1)
+if (file.exists("quad.conv.RDATA")) {
+  load("quad.conv.RDATA")
+} else {
+
+  for (i in n_q) {
+
+    # create the data
+    quad <- data.frame(x = runif(i), y = runif(i), pt = 0, wt = lansing$window$units$multiplier^2 / i)
+    tmp <- quad[rep(seq_len(i), length(levels(pp$tree))), ]
+    tmp$tree <- rep(levels(pp$tree), each = i) # assign the tree classes
+    dat <- rbind(pp, tmp)
+    rm(quad, tmp)
+    
+    # fit the model without overdispersion fields
+    tmp.m0 <- mvlgcp(pt ~ (1|tree), data = dat, weights = dat$wt, basis.functions = bfs, response.id = dat$tree, mv.flds = "correlated")
+    # grab out the starting parameters
+    start.pars <- lapply(split(tmp.m0$fit$parfull, names(tmp.m0$fit$parfull)), unname)
+    start.pars$b <- c(start.pars$b, rep(0, nrow(bfs) * length(levels(dat$tree)))) # add additional field coefs
+    start.pars$theta <- c(start.pars$theta, rep(-3, length(levels(dat$tree)))) # add additional field variances
+    
+    # fit the full model
+    tmp.m <- mvlgcp(pt ~ (1|tree), data = dat, weights = dat$wt, basis.functions = bfs, response.id = dat$tree, start = start.pars)
+ 
+    # store results
+    ll0 <- c(ll0, logLik(tmp.m0))
+    ll <- c(ll, logLik(tmp.m))
+    rm(dat, tmp.m0, tmp.m)
+    
+  }
+  quad.conv <- data.frame(
+    q = n_q, rep = rep.idx, ll0, ll
+  )
+  save(quad.conv, file = "quad.conv.RDATA")
+}
+
+library(ggplot2)
+library(dplyr)
+png(filename = paste0(home.wd, "/figures/quad_convergence.png"), width = 6.2 * plot.res, height = 4.2 * plot.res, res = plot.res)
+ggplot(dat, aes(x = q, y = ll)) +
+  geom_point() + 
+  geom_line(data = dat %>% group_by(q) %>% summarise(y_mean = mean(ll)), aes(x = q, y = y_mean)) +
+  geom_vline(aes(xintercept = 10000, color = "red"), lty = "dashed") +
+  scale_x_continuous(name = "# of randomly sampled quadrature points (q)", breaks = c(1000, seq(10000, 100000, by = 10000)), labels = paste0(c(1000, seq(10000, 100000, by = 10000)) / 1000, "K")) +
+  scale_y_continuous(name = "Approximate log-Likelihood") +
+  scale_color_manual(values = "red", name = "", labels = expression(q==10000)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = NA, color = "black"), axis.line = element_line(colour = "black"))
+dev.off()
+
+# Fitted Fields ################################################################
+
+sp_flds <- get_field(m, domain, which.response = 1:6)
+lat_flds <- get_field(m, domain)
+
+zlims <- range(cbind(sp_flds, lat_flds))
+Lambda <- get_loadings(m)
+
+tmp <- VarCorr(m)
+sigma_j <- diag(tmp$cond$basis.functions.1)
+
+png(filename = paste0(home.wd, "/figures/lansing_fitted_fields.png"), width = 6.2 * plot.res, height = 3.5 * plot.res, res = plot.res)
+layout(matrix(c(1,2,3,4,5,6,7,8,9,9,10,10,11,11,12,13,14,15,16,17,18), nrow = 3, ncol = 7, byrow = T), widths = c(0.1, rep(0.9/6, 6)), heights = rep(1/3,3))
+par(mar = c(0,0.1,1.5,0))
+
+plot(1, axes = F, bty = "n", type = "n")
+
+plot(vec2im(sp_flds[,1], domain$x, domain$y), main = "", box = F, zlim = zlims, ribbon = F)
+points(dat[dat$tree==levels(dat$tree)[1] & dat$pt == 1, c("x", "y")], col = ggplot2::alpha("black", 0.2), cex = 0.5)
+title(main = levels(dat$tree)[1])
+mtext(expression(paste(ln~mu[j],"(s)")), side = 2, line = 0.5, las = 1, xpd = T)
+mtext(bquote(lambda[1]==.(round(Lambda[1,1],1))~","~.(round(Lambda[1,2],1))), side = 1, line = 0, xpd = T, cex = 0.6)
+
+plot(vec2im(sp_flds[,2], domain$x, domain$y), main = "", box = F, zlim = zlims, ribbon = F)
+points(dat[dat$tree==levels(dat$tree)[2] & dat$pt == 1, c("x", "y")], col = ggplot2::alpha("black", 0.2), cex = 0.5)
+title(main = levels(dat$tree)[2])
+mtext(bquote(lambda[2]==.(round(Lambda[2,1],1))~","~.(round(Lambda[2,2],1))), side = 1, line = 0, xpd = T, cex = 0.6)
+
+
+plot(vec2im(sp_flds[,3], domain$x, domain$y), main = "", box = F, zlim = zlims, ribbon = F)
+points(dat[dat$tree==levels(dat$tree)[3] & dat$pt == 1, c("x", "y")], col = ggplot2::alpha("black", 0.2), cex = 0.5)
+title(main = levels(dat$tree)[3])
+mtext(bquote(lambda[3]==.(round(Lambda[3,1],1))~","~.(round(Lambda[3,2],1))), side = 1, line = 0, xpd = T, cex = 0.6)
+
+plot(vec2im(sp_flds[,4], domain$x, domain$y), main = "", box = F, zlim = zlims, ribbon = F)
+points(dat[dat$tree==levels(dat$tree)[4] & dat$pt == 1, c("x", "y")], col = ggplot2::alpha("black", 0.2), cex = 0.5)
+title(main = levels(dat$tree)[4])
+mtext(bquote(lambda[4]==.(round(Lambda[4,1],1))~","~.(round(Lambda[4,2],1))), side = 1, line = 0, xpd = T, cex = 0.6)
+
+plot(vec2im(sp_flds[,5], domain$x, domain$y), main = "", box = F, zlim = zlims, ribbon = F)
+points(dat[dat$tree==levels(dat$tree)[5] & dat$pt == 1, c("x", "y")], col = ggplot2::alpha("black", 0.2), cex = 0.5)
+title(main = levels(dat$tree)[5])
+mtext(bquote(lambda[5]==.(round(Lambda[5,1],1))~","~.(round(Lambda[5,2],1))), side = 1, line = 0, xpd = T, cex = 0.6)
+
+plot(vec2im(sp_flds[,6], domain$x, domain$y), main = "", box = F, zlim = zlims, ribbon = F)
+points(dat[dat$tree==levels(dat$tree)[6] & dat$pt == 1, c("x", "y")], col = ggplot2::alpha("black", 0.2), cex = 0.5)
+title(main = levels(dat$tree)[6])
+mtext(bquote(lambda[6]==.(round(Lambda[6,1],1))~","~.(round(Lambda[6,2],1))), side = 1, line = 0, xpd = T, cex = 0.6)
+
+plot(1, axes = F, bty = "n", type = "n")
+
+plot(vec2im(lat_flds[,1], domain$x, domain$y), main = "", box = F, zlim = zlims, ribbon = F)
+mtext(expression(paste(xi[1]^(u),"(s)")), side = 2, line = -3, las = 1, xpd = T)
+
+plot(vec2im(lat_flds[,2], domain$x, domain$y), main = "", box = F, zlim = zlims, ribbon = F)
+mtext(expression(paste(xi[2]^(u),"(s)")), side = 2, line = -3, las = 1, xpd = T)
+
+par(mar = c(0,2,4,1))
+legend_image <- as.raster(matrix(rev(viridisLite::plasma(20)), ncol=1))
+plot(c(0,8),c(zlims[1],zlims[2]),type = 'n', axes = F, xlab = "", ylab = "", main = "")
+mtext("field values", line = 0.5, cex = 0.75, adj = 0, at = 1.75)
+text(x=1.9 + 3, y = seq(round(zlims[1]),round(zlims[2]),l=5), labels = seq(round(zlims[1]),round(zlims[2]),l=5), xpd = T)
+lines(c(0,1.01,1.01,0,0) + 3, c(zlims[1],zlims[1],zlims[2],zlims[2],zlims[1]))
+for (i in seq(round(zlims[1]),round(zlims[2]),l=5)) {
+  lines(c(1.01, 1.21) + 3, rep(i, 2))
+}
+rasterImage(legend_image, 0 + 3, zlims[1], 1 + 3, zlims[2])
+
+par(mar = c(1.5,0.1,1.5,0))
+plot(1, axes = F, bty = "n", type = "n")
+
+plot(vec2im(lat_flds[,3], domain$x, domain$y), main = "", box = F, zlim = zlims, ribbon = F)
+mtext(expression(paste(xi[j]^(epsilon),"(s)")), side = 2, line = 0.5, las = 1, xpd = T)
+mtext(bquote(sigma[1]^2==.(round(sigma_j[1],2))), side = 1, line = 0.5, xpd = T, cex = 0.6)
+plot(vec2im(lat_flds[,4], domain$x, domain$y), main = "", box = F, zlim = zlims, ribbon = F)
+mtext(bquote(sigma[2]^2==.(round(sigma_j[2],2))), side = 1, line = 0.5, xpd = T, cex = 0.6)
+plot(vec2im(lat_flds[,5], domain$x, domain$y), main = "", box = F, zlim = zlims, ribbon = F)
+mtext(bquote(sigma[3]^2==.(round(sigma_j[3],2))), side = 1, line = 0.5, xpd = T, cex = 0.6)
+plot(vec2im(lat_flds[,6], domain$x, domain$y), main = "", box = F, zlim = zlims, ribbon = F)
+mtext(bquote(sigma[4]^2==.(round(sigma_j[4],2))), side = 1, line = 0.5, xpd = T, cex = 0.6)
+plot(vec2im(lat_flds[,7], domain$x, domain$y), main = "", box = F, zlim = zlims, ribbon = F)
+mtext(bquote(sigma[5]^2==.(round(sigma_j[5],2))), side = 1, line = 0.5, xpd = T, cex = 0.6)
+plot(vec2im(lat_flds[,8], domain$x, domain$y), main = "", box = F, zlim = zlims, ribbon = F)
+mtext(bquote(sigma[6]^2==.(round(sigma_j[6],2))), side = 1, line = 0.5, xpd = T, cex = 0.6)
+
+par(mfrow = c(1, 1), mar = c(5.1,4.1,4.1,2.1))
 dev.off()
 
 
