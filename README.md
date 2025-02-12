@@ -1,5 +1,5 @@
 # Biplots-of-point-patterns
-This repo accompanies the manuscript "Biplots of multivariate spatial point processes - an exploratory tool to visualize structure in multiple, correlated point patterns" submitted to the Journal of the American Statistical Association.
+This repo accompanies the manuscript "Biplots of multivariate spatial point processes - an exploratory tool to visualize structure in multiple, correlated point patterns" submitted for review.
 The code can be used to replicate both the simulations and real data analyses therein.
 
 ## Lansing Woods
