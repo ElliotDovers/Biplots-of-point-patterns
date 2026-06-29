@@ -1,11 +1,24 @@
+# set the working dir
+home.wd <- getwd()
+
+# updated glmmTMB package can be installed from source provided in the code zip
+# not that you will need to run remove.packages("glmmTMB") if you have a previous installation, then restart your R session
+if(!require(glmmTMB, quietly = T)){
+  setwd("..")
+  install.packages(paste0(getwd(), "/glmmTMB_1.1.9-9000.tar.gz"), repos = NULL, type="source")
+  setwd(home.wd)
+}
+
+
 library(spatstat)
 library(glmmTMB)
 library(corrplot)
 
 # set the plot resolution
 plot.res <- 500
-# set the working dir
-home.wd <- getwd()
+# use US or UK English?
+en_uk <- TRUE
+# create the figures folder if needed
 dir.create(file.path(home.wd, "figures"))
 
 # extract the regular grid of quadrature included in the glmmTMB data
@@ -457,7 +470,8 @@ bfs$xycol <- domain$xycol[nn.bfs]
 # 
 # dev.off()
 
-tmp.names <- c("", "", "", "", "redoak", "whiteoak")
+# remove names as I will manually shift the labels on the biplot for aesthetics
+# requires caution that arrows and manual labels match (should check by setting `tmp.names = levels(m$response.id)`)
 tmp.names <- rep("", 6)
 
 # Plot with all data
@@ -465,7 +479,11 @@ png(filename = paste0(home.wd, "/figures/lansing_biplot.png"), width = 6.2 * plo
 layout(matrix(c(1,1,2,2,2,2,3,4,5,6,7,8), nrow = 2, byrow = T), widths = rep(1/6, 6), heights = c(2.1/3, 0.9/3))
 par(mar = c(2.1, 1.5, 2.1, 2.1))
 plot(vec2im(domain$xycol, domain$x, domain$y), valuesAreColors = T, box = F, main = "")
-mtext("A: Biplot with\nDomain Color Guide", side = 3, line = -0.75, adj = 0)
+if (en_uk) {
+  mtext("A: Biplot with\nDomain Colour Guide", side = 3, line = -0.75, adj = 0) 
+} else {
+  mtext("A: Biplot with\nDomain Color Guide", side = 3, line = -0.75, adj = 0)
+}
 # mtext("Lansing Woods", side = 3, line = -1)
 par(xpd = T)
 points(bfs$x, bfs$y, bg = bfs$xycol, pch = 21)

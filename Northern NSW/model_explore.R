@@ -1,3 +1,14 @@
+# set the working dir
+home.wd <- getwd()
+
+# updated glmmTMB package can be installed from source provided in the code zip
+# not that you will need to run remove.packages("glmmTMB") if you have a previous installation, then restart your R session
+if(!require(glmmTMB, quietly = T)){
+  setwd("..")
+  install.packages(paste0(getwd(), "/glmmTMB_1.1.9-9000.tar.gz"), repos = NULL, type="source")
+  setwd(home.wd)
+}
+
 library(glmmTMB)
 library(spatstat)
 library(gclus)
@@ -6,8 +17,9 @@ library(ggplot2)
 
 # set the plot resolution
 plot.res <- 500
-# set the working dir
-home.wd <- getwd()
+# use US or UK English?
+en_uk <- TRUE
+# create the figures folder if needed
 dir.create(file.path(home.wd, "figures"))
 
 # get a list of the model info.
@@ -474,7 +486,11 @@ png(filename = paste0(home.wd, "/figures/nsw_biplot.png"), width = 6.2 * plot.re
 layout(matrix(c(1,1,2,2,2,2,3,4,5,6,7,8), nrow = 2, byrow = T), widths = rep(1/6, 6), heights = c(2/3, 1/3))
 par(mar = c(2.1, 1.5, 2.1, 2.1))
 plot(vec2im(domain$xycol, domain$x, domain$y), valuesAreColors = T, box = F, main = "")
-mtext("A: Biplot with Domain Color Guide", side = 3, line = 0.5, adj = 0, xpd = T)
+if (en_uk) {
+  mtext("A: Biplot with Domain Colour Guide", side = 3, line = 0.5, adj = 0, xpd = T)
+} else {
+  mtext("A: Biplot with Domain Color Guide", side = 3, line = 0.5, adj = 0, xpd = T)
+}
 par(xpd = T)
 points(m2a$basis.functions$x, m2a$basis.functions$y, bg = m2a$basis.functions$xycol, pch = 21, cex = 1.2)
 legend(x = 0.1, y = -0.1, legend = c("Basis function nodes", "Tree Locations"), pch = c(1, 4), bty = "n", xpd = T)
@@ -526,7 +542,11 @@ png(filename = paste0(home.wd, "/figures/nsw_biplot_all_species.png"), width = 6
 layout(matrix(1:2, nrow = 1, byrow = T), widths = c(0.35,0.65), heights = 1)
 par(mar = c(2.1, 1.5, 2.1, 2.1))
 plot(vec2im(domain$xycol, domain$x, domain$y), valuesAreColors = T, box = F, main = "")
-mtext("Biplot with Domain Color Guide", side = 3, line = 0.5, adj = 0, xpd = T)
+if (en_uk) {
+  mtext("A: Biplot with Domain Colour Guide", side = 3, line = 0.5, adj = 0, xpd = T)
+} else {
+  mtext("A: Biplot with Domain Color Guide", side = 3, line = 0.5, adj = 0, xpd = T)
+}
 # mtext("Lansing Woods", side = 3, line = -1)
 par(xpd = T)
 points(m2a$basis.functions$x, m2a$basis.functions$y, bg = m2a$basis.functions$xycol, pch = 21)
