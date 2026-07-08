@@ -1,5 +1,5 @@
 # Biplots-of-point-patterns
-This repo accompanies the manuscript "Biplots of multivariate spatial point processes - an exploratory tool to visualise structure in multiple, correlated point patterns" submitted for review.
+This repo accompanies the manuscript "Biplots of multivariate spatial point processes --- an exploratory tool to visualise co-occurrence in multi-species presence-only data" submitted for review.
 The code can be used to replicate both the simulations and real data analyses therein.
 
 ## `glmmTMB` extension for multivariate log-Gaussian Cox processes
